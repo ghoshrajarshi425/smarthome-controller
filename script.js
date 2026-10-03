@@ -1,0 +1,441 @@
+// =====================================================
+// SMARTHOME ENGINE - MQTT + SPA + TIMER & SCHEDULER
+// =====================================================
+
+// Secure WebSocket URL (compatible with HTTPS & GitHub Pages)
+const BROKER_URL = "wss://broker.hivemq.com:8884/mqtt";
+const CLIENT_ID = "SmartHome-Browser-" + Math.random().toString(16).substring(2, 8);
+
+// 4 Channel Topics Definition
+const DEVICE_TOPICS = [
+    {
+        name: "Living Room Light",
+        setTopic: "smarthome/rajarshi/light1/set",
+        stateTopic: "smarthome/rajarshi/light1/state"
+    },
+    {
+        name: "Ceiling Fan",
+        setTopic: "smarthome/rajarshi/fan1/set",
+        stateTopic: "smarthome/rajarshi/fan1/state"
+    },
+    {
+        name: "Bedroom Light",
+        setTopic: "smarthome/rajarshi/light2/set",
+        stateTopic: "smarthome/rajarshi/light2/state"
+    },
+    {
+        name: "Smart Socket",
+        setTopic: "smarthome/rajarshi/socket1/set",
+        stateTopic: "smarthome/rajarshi/socket1/state"
+    }
+];
+
+const STATUS_TOPIC = "smarthome/rajarshi/status";
+let mqttClient = null;
+
+// Automation storage loaded from browser localStorage
+let automationJobs = JSON.parse(localStorage.getItem("smarthome_automations")) || [];
+let activeTargetDeviceIndex = 0;
+
+// ================= LIFECYCLE BOOTSTRAP =================
+document.addEventListener("DOMContentLoaded", () => {
+    initNavigation();
+    initRoomFilters();
+    connectMQTT();
+
+    // Start 1-second master clock for evaluating countdown timers & schedules
+    setInterval(automationMasterTick, 1000);
+    renderActiveCardIndicators();
+});
+
+// ================= MQTT CONNECTION & HANDLING =================
+function connectMQTT() {
+    updateNetworkStatusUI(false, "Connecting to Broker...");
+
+    mqttClient = mqtt.connect(BROKER_URL, {
+        clientId: CLIENT_ID,
+        clean: true,
+        connectTimeout: 5000,
+        reconnectPeriod: 3000
+    });
+
+    mqttClient.on("connect", () => {
+        updateNetworkStatusUI(true, "Broker Online • Ready");
+
+        // Subscribe to ESP8266 hardware status
+        mqttClient.subscribe(STATUS_TOPIC, { qos: 1 });
+
+        // Subscribe to state topics for all 4 channels
+        DEVICE_TOPICS.forEach((dev) => {
+            mqttClient.subscribe(dev.stateTopic, { qos: 1 });
+        });
+    });
+
+    mqttClient.on("message", (topic, messageBuffer) => {
+        const payload = messageBuffer.toString();
+
+        // 1. Hardware Status Update
+        if (topic === STATUS_TOPIC) {
+            const isOnline = (payload === "ONLINE");
+            updateNetworkStatusUI(isOnline, isOnline ? "Hardware Online" : "Hardware Offline");
+            return;
+        }
+
+        // 2. Relay State Updates from ESP8266
+        DEVICE_TOPICS.forEach((dev, index) => {
+            if (topic === dev.stateTopic) {
+                applyHardwareStateToUI(index, payload === "ON");
+            }
+        });
+    });
+
+    mqttClient.on("error", (err) => {
+        console.error("MQTT Error:", err);
+        updateNetworkStatusUI(false, "Broker Error");
+    });
+
+    mqttClient.on("offline", () => {
+        updateNetworkStatusUI(false, "Network Offline");
+    });
+}
+
+// Synchronizes the Dashboard and Devices view according to the hardware state
+function applyHardwareStateToUI(deviceIndex, isTurnedOn) {
+    // 1. Sync Dashboard View Card
+    const dashCards = document.querySelectorAll(".device-card");
+    if (dashCards[deviceIndex]) {
+        const card = dashCards[deviceIndex];
+        const checkbox = card.querySelector('input[type="checkbox"]');
+        const stateText = card.querySelector(".state");
+
+        checkbox.checked = isTurnedOn;
+        if (isTurnedOn) {
+            card.classList.add("active");
+            if (stateText) stateText.textContent = "ON";
+        } else {
+            card.classList.remove("active");
+            if (stateText) stateText.textContent = "OFF";
+        }
+    }
+
+    // 2. Sync Devices Inventory View Row
+    const detailCards = document.querySelectorAll(".device-detail-card");
+    if (detailCards[deviceIndex]) {
+        const detailCard = detailCards[deviceIndex];
+        const checkbox = detailCard.querySelector('input[type="checkbox"]');
+        const statusIndicator = detailCard.querySelector(".device-status-indicator");
+        const stateText = detailCard.querySelector(".device-state-text");
+
+        checkbox.checked = isTurnedOn;
+        if (isTurnedOn) {
+            statusIndicator.classList.add("active");
+            if (stateText) stateText.textContent = "ON";
+        } else {
+            statusIndicator.classList.remove("active");
+            if (stateText) stateText.textContent = "OFF";
+        }
+    }
+
+    updateActiveDeviceCounter();
+}
+
+// Publishes ON/OFF commands to the MQTT broker
+function dispatchCommand(deviceIndex, isTurnedOn) {
+    if (!mqttClient || !mqttClient.connected) {
+        alert("MQTT Broker not connected. Please check your internet connection.");
+        return;
+    }
+
+    const command = isTurnedOn ? "ON" : "OFF";
+    const topic = DEVICE_TOPICS[deviceIndex].setTopic;
+    mqttClient.publish(topic, command, { qos: 1 });
+}
+
+// Triggered from Dashboard View switches: onchange="updateSwitch(this)"
+function updateSwitch(inputElement) {
+    const card = inputElement.closest(".device-card");
+    const allCards = Array.from(document.querySelectorAll(".device-card"));
+    const deviceIndex = allCards.indexOf(card);
+
+    dispatchCommand(deviceIndex, inputElement.checked);
+}
+
+// Triggered from Devices View switches: onchange="handleDeviceToggle(this)"
+function handleDeviceToggle(inputElement) {
+    const detailCard = inputElement.closest(".device-detail-card");
+    const allDetailCards = Array.from(document.querySelectorAll(".device-detail-card"));
+    const deviceIndex = allDetailCards.indexOf(detailCard);
+
+    dispatchCommand(deviceIndex, inputElement.checked);
+}
+
+// ================= AUTOMATION ENGINE (TIMER & SCHEDULER) =================
+
+function openAutomationModal(deviceIndex, applianceName) {
+    activeTargetDeviceIndex = deviceIndex;
+    document.getElementById("modal-appliance-title").textContent = applianceName;
+    document.getElementById("automation-modal").classList.add("open");
+    renderModalJobsList();
+}
+
+function closeAutomationModal() {
+    document.getElementById("automation-modal").classList.remove("open");
+}
+
+function switchModalTab(tabName) {
+    document.querySelectorAll(".modal-tab-btn").forEach((b) => b.classList.remove("active"));
+    document.querySelectorAll(".tab-pane").forEach((p) => p.classList.remove("active"));
+
+    document.querySelector(`.modal-tab-btn[data-tab="${tabName}"]`).classList.add("active");
+    document.getElementById(`tab-${tabName}`).classList.add("active");
+}
+
+// Set Countdown Timer
+function setCountdownTimer() {
+    const initialAction = document.getElementById("timer-initial-action").value;
+    const hours = parseInt(document.getElementById("timer-hours").value) || 0;
+    const minutes = parseInt(document.getElementById("timer-minutes").value) || 0;
+
+    const totalSeconds = (hours * 3600) + (minutes * 60);
+    if (totalSeconds <= 0) {
+        alert("Please set a duration greater than 0 minutes.");
+        return;
+    }
+
+    // Execute immediate action right now
+    dispatchCommand(activeTargetDeviceIndex, initialAction === "ON");
+
+    // Calculate expiry timestamp and the end action
+    const expiryTimestamp = Date.now() + (totalSeconds * 1000);
+    const endAction = (initialAction === "ON") ? "OFF" : "ON";
+
+    const newJob = {
+        id: "job_" + Date.now(),
+        deviceIndex: activeTargetDeviceIndex,
+        type: "timer",
+        targetTimestamp: expiryTimestamp,
+        endAction: endAction,
+        label: `Timer (${hours > 0 ? hours + "h " : ""}${minutes}m) &rarr; ${endAction}`
+    };
+
+    automationJobs.push(newJob);
+    saveJobs();
+    renderModalJobsList();
+    renderActiveCardIndicators();
+}
+
+// Set Exact Clock Schedule
+function setExactSchedule() {
+    const timeValue = document.getElementById("schedule-time").value; // "HH:MM"
+    const targetAction = document.getElementById("schedule-target-action").value;
+
+    if (!timeValue) {
+        alert("Please select a target clock time.");
+        return;
+    }
+
+    const newJob = {
+        id: "job_" + Date.now(),
+        deviceIndex: activeTargetDeviceIndex,
+        type: "schedule",
+        targetClockTime: timeValue,
+        endAction: targetAction,
+        label: `Schedule at ${timeValue} &rarr; ${targetAction}`
+    };
+
+    automationJobs.push(newJob);
+    saveJobs();
+    renderModalJobsList();
+    renderActiveCardIndicators();
+}
+
+// Master loop running once every second
+function automationMasterTick() {
+    const now = new Date();
+    const currentMillis = now.getTime();
+    const currentHHMM = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
+    const currentSeconds = now.getSeconds();
+
+    let jobsChanged = false;
+
+    automationJobs = automationJobs.filter((job) => {
+        // Evaluate Countdown Timer
+        if (job.type === "timer") {
+            if (currentMillis >= job.targetTimestamp) {
+                console.log(`[Timer Triggered] Flipping device ${job.deviceIndex} to ${job.endAction}`);
+                dispatchCommand(job.deviceIndex, job.endAction === "ON");
+                jobsChanged = true;
+                return false; // Remove finished job
+            }
+        }
+
+        // Evaluate Exact Clock Schedule
+        if (job.type === "schedule") {
+            if (job.targetClockTime === currentHHMM && currentSeconds === 0) {
+                console.log(`[Schedule Triggered] Flipping device ${job.deviceIndex} to ${job.endAction}`);
+                dispatchCommand(job.deviceIndex, job.endAction === "ON");
+                jobsChanged = true;
+                return false; // Remove one-time schedule
+            }
+        }
+
+        return true; // Keep active
+    });
+
+    if (jobsChanged) {
+        saveJobs();
+        renderModalJobsList();
+        renderActiveCardIndicators();
+    }
+}
+
+function cancelJob(jobId) {
+    automationJobs = automationJobs.filter((j) => j.id !== jobId);
+    saveJobs();
+    renderModalJobsList();
+    renderActiveCardIndicators();
+}
+
+function saveJobs() {
+    localStorage.setItem("smarthome_automations", JSON.stringify(automationJobs));
+}
+
+function renderModalJobsList() {
+    const listContainer = document.getElementById("active-jobs-list");
+    if (!listContainer) return;
+
+    const deviceJobs = automationJobs.filter((j) => j.deviceIndex === activeTargetDeviceIndex);
+
+    if (deviceJobs.length === 0) {
+        listContainer.innerHTML = '<p class="no-jobs-text">No active timers or schedules running.</p>';
+        return;
+    }
+
+    listContainer.innerHTML = deviceJobs.map((job) => `
+        <div class="active-job-item">
+            <div class="job-meta">
+                <strong>${job.label}</strong>
+                <span>Active</span>
+            </div>
+            <button type="button" class="job-cancel-btn" onclick="cancelJob('${job.id}')">Cancel</button>
+        </div>
+    `).join("");
+}
+
+function renderActiveCardIndicators() {
+    const cards = document.querySelectorAll(".device-card");
+    cards.forEach((card, idx) => {
+        const hasJob = automationJobs.some((j) => j.deviceIndex === idx);
+        if (hasJob) {
+            card.classList.add("has-timer");
+        } else {
+            card.classList.remove("has-timer");
+        }
+    });
+}
+
+// ================= SYSTEM METRICS & UI STATUS =================
+function updateNetworkStatusUI(isOnline, statusMessage) {
+    const connectionBox = document.querySelector(".connection");
+    const connectionText = connectionBox ? connectionBox.querySelector("strong") : null;
+    const connectionSub = connectionBox ? connectionBox.querySelector("small") : null;
+    const connectionDot = document.querySelector(".connection-dot");
+
+    if (connectionText) connectionText.textContent = isOnline ? "System Online" : "System Alert";
+    if (connectionSub) connectionSub.textContent = statusMessage;
+    if (connectionDot) {
+        connectionDot.style.background = isOnline ? "var(--green)" : "#ff5252";
+        connectionDot.style.boxShadow = isOnline ? "0 0 12px var(--green)" : "0 0 12px #ff5252";
+    }
+
+    const onlineBadge = document.querySelector(".online-status strong");
+    const onlineDot = document.querySelector(".online-status span");
+
+    if (onlineBadge) {
+        onlineBadge.textContent = isOnline ? "ONLINE" : "OFFLINE";
+        onlineBadge.style.color = isOnline ? "var(--green)" : "#ff5252";
+    }
+    if (onlineDot) {
+        onlineDot.style.background = isOnline ? "var(--green)" : "#ff5252";
+        onlineDot.style.boxShadow = isOnline ? "0 0 10px var(--green)" : "0 0 10px #ff5252";
+    }
+}
+
+function updateActiveDeviceCounter() {
+    const activeCheckboxes = document.querySelectorAll('.device-card input[type="checkbox"]:checked');
+    const counterDisplay = document.querySelector(".device-count");
+    if (counterDisplay) {
+        const count = activeCheckboxes.length;
+        counterDisplay.textContent = count < 10 ? "0" + count : count;
+    }
+}
+
+// ================= SPA VIEW ROUTING =================
+function initNavigation() {
+    const menuItems = document.querySelectorAll(".side-menu .menu-item");
+    const views = document.querySelectorAll(".page-view");
+    const greetingText = document.querySelector(".greeting");
+
+    menuItems.forEach((clickedItem) => {
+        clickedItem.addEventListener("click", (event) => {
+            event.preventDefault();
+            menuItems.forEach((item) => item.classList.remove("active"));
+            clickedItem.classList.add("active");
+
+            const targetViewId = clickedItem.dataset.view;
+            views.forEach((view) => {
+                view.classList.remove("active");
+                if (view.id === `view-${targetViewId}`) {
+                    view.classList.add("active");
+                }
+            });
+
+            if (greetingText) {
+                greetingText.textContent = `SMART HOME / ${targetViewId.toUpperCase()}`;
+            }
+        });
+    });
+}
+
+function initRoomFilters() {
+    const filterButtons = document.querySelectorAll(".pill-btn");
+    const detailCards = document.querySelectorAll(".device-detail-card");
+
+    filterButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+            filterButtons.forEach((b) => b.classList.remove("active"));
+            btn.classList.add("active");
+
+            const selectedRoom = btn.dataset.filter;
+            detailCards.forEach((card) => {
+                if (selectedRoom === "all" || card.dataset.room === selectedRoom) {
+                    card.style.display = "flex";
+                } else {
+                    card.style.display = "none";
+                }
+            });
+        });
+    });
+}
+
+// ================= EMERGENCY & CONFIGURATION ACTIONS =================
+function emergencyMasterOff() {
+    if (!mqttClient || !mqttClient.connected) return;
+
+    DEVICE_TOPICS.forEach((dev) => {
+        mqttClient.publish(dev.setTopic, "OFF", { qos: 1 });
+    });
+    console.log("Master Kill: Sent OFF command to all channels.");
+}
+
+function saveSettings() {
+    const brokerUrl = document.getElementById("cfg-broker-url").value;
+    const rootTopic = document.getElementById("cfg-root-topic").value;
+    const tariff = document.getElementById("cfg-tariff").value;
+
+    localStorage.setItem("smarthome_broker", brokerUrl);
+    localStorage.setItem("smarthome_topic", rootTopic);
+    localStorage.setItem("smarthome_tariff", tariff);
+
+    alert("Configuration parameters updated.");
+}
