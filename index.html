@@ -4,14 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartHome Control</title>
+    <title>SmartHome Control Center</title>
 
     <!-- Google Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- Font Awesome -->
+    <!-- Font Awesome 6.5.2 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
     <!-- CSS -->
@@ -36,7 +36,6 @@
             </div>
 
             <!-- NAVIGATION MENU -->
-            <!-- Each link has a data-view attribute telling JavaScript which section to display -->
             <div class="side-menu">
                 <div class="menu-title">HOME</div>
 
@@ -61,17 +60,17 @@
                     <span class="connection-dot"></span>
                     <div>
                         <strong>System Online</strong>
-                        <small>All devices connected</small>
+                        <small>Connecting to broker...</small>
                     </div>
                 </div>
             </div>
 
         </aside>
 
-        <!-- ================= MAIN CONTENT AREA ================= -->
+        <!-- ================= MAIN CONTENT ================= -->
         <main class="main">
 
-            <!-- HEADER (Remains visible across Dashboard, Devices, and Settings) -->
+            <!-- HEADER -->
             <header class="header">
                 <div class="header-left">
                     <p class="greeting">SMART HOME / DASHBOARD</p>
@@ -97,6 +96,7 @@
             <!-- ================= VIEW 1: DASHBOARD ================= -->
             <section id="view-dashboard" class="page-view active">
 
+                <!-- HOME STATUS CARD -->
                 <section class="home-status">
                     <div class="home-info">
                         <div class="home-icon">
@@ -117,122 +117,159 @@
                     </div>
                 </section>
 
+                <!-- DEVICES HEADING -->
                 <div class="devices-heading">
                     <div>
                         <p>CONNECTED DEVICES</p>
                         <h2>Your appliances</h2>
                     </div>
-                    <div class="device-count">04</div>
+                    <div class="device-count">00</div>
                 </div>
 
-                <!-- 4 CARDS GRID -->
+                <!-- 4 DEVICE CARDS -->
                 <section class="device-grid">
 
-                    <!-- 01: Light -->
+                    <!-- CARD 01: LIGHT -->
                     <div class="device-card light-card">
                         <div class="card-top">
                             <div class="device-number">01</div>
                             <div class="device-status">LIVING ROOM</div>
                         </div>
+
                         <div class="device-icon light">
                             <i class="fa-regular fa-lightbulb"></i>
                         </div>
+
                         <div class="device-details">
                             <h3>Living Room Light</h3>
                             <p>Main ceiling light</p>
                         </div>
+
                         <div class="card-bottom">
                             <div class="power-text">
                                 <span>POWER</span>
                                 <strong class="state">OFF</strong>
                             </div>
-                            <label class="toggle">
-                                <input type="checkbox" onchange="updateSwitch(this)">
-                                <span class="toggle-slider">
-                                    <span class="toggle-circle"></span>
-                                </span>
-                            </label>
+
+                            <div class="card-controls">
+                                <button type="button" class="timer-trigger-btn" onclick="openAutomationModal(0, 'Living Room Light')" title="Set Timer / Schedule">
+                                    <i class="fa-regular fa-clock"></i>
+                                </button>
+                                <label class="toggle">
+                                    <input type="checkbox" onchange="updateSwitch(this)">
+                                    <span class="toggle-slider">
+                                        <span class="toggle-circle"></span>
+                                    </span>
+                                </label>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- 02: Fan -->
+                    <!-- CARD 02: FAN -->
                     <div class="device-card fan-card">
                         <div class="card-top">
                             <div class="device-number">02</div>
                             <div class="device-status">LIVING ROOM</div>
                         </div>
+
                         <div class="device-icon fan">
                             <i class="fa-solid fa-fan"></i>
                         </div>
+
                         <div class="device-details">
                             <h3>Ceiling Fan</h3>
                             <p>Living room fan</p>
                         </div>
+
                         <div class="card-bottom">
                             <div class="power-text">
                                 <span>POWER</span>
                                 <strong class="state">OFF</strong>
                             </div>
-                            <label class="toggle">
-                                <input type="checkbox" onchange="updateSwitch(this)">
-                                <span class="toggle-slider">
-                                    <span class="toggle-circle"></span>
-                                </span>
-                            </label>
+
+                            <div class="card-controls">
+                                <button type="button" class="timer-trigger-btn" onclick="openAutomationModal(1, 'Ceiling Fan')" title="Set Timer / Schedule">
+                                    <i class="fa-regular fa-clock"></i>
+                                </button>
+                                <label class="toggle">
+                                    <input type="checkbox" onchange="updateSwitch(this)">
+                                    <span class="toggle-slider">
+                                        <span class="toggle-circle"></span>
+                                    </span>
+                                </label>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- 03: Bedroom -->
+                    <!-- CARD 03: BEDROOM LIGHT -->
                     <div class="device-card bedroom-card">
                         <div class="card-top">
                             <div class="device-number">03</div>
                             <div class="device-status">BEDROOM</div>
                         </div>
+
                         <div class="device-icon bedroom">
                             <i class="fa-solid fa-bed"></i>
                         </div>
+
                         <div class="device-details">
                             <h3>Bedroom Light</h3>
                             <p>Ambient room lighting</p>
                         </div>
+
                         <div class="card-bottom">
                             <div class="power-text">
                                 <span>POWER</span>
                                 <strong class="state">OFF</strong>
                             </div>
-                            <label class="toggle">
-                                <input type="checkbox" onchange="updateSwitch(this)">
-                                <span class="toggle-slider">
-                                    <span class="toggle-circle"></span>
-                                </span>
-                            </label>
+
+                            <div class="card-controls">
+                                <button type="button" class="timer-trigger-btn" onclick="openAutomationModal(2, 'Bedroom Light')" title="Set Timer / Schedule">
+                                    <i class="fa-regular fa-clock"></i>
+                                </button>
+                                <label class="toggle">
+                                    <input type="checkbox" onchange="updateSwitch(this)">
+                                    <span class="toggle-slider">
+                                        <span class="toggle-circle"></span>
+                                    </span>
+                                </label>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- 04: Socket -->
+                    <!-- CARD 04: SOCKET -->
                     <div class="device-card socket-card">
                         <div class="card-top">
                             <div class="device-number">04</div>
                             <div class="device-status">KITCHEN</div>
                         </div>
+
                         <div class="device-icon socket">
                             <i class="fa-solid fa-plug"></i>
                         </div>
+
                         <div class="device-details">
                             <h3>Smart Socket</h3>
                             <p>Connected appliance</p>
                         </div>
+
                         <div class="card-bottom">
                             <div class="power-text">
                                 <span>POWER</span>
                                 <strong class="state">OFF</strong>
                             </div>
-                            <label class="toggle">
-                                <input type="checkbox" onchange="updateSwitch(this)">
-                                <span class="toggle-slider">
-                                    <span class="toggle-circle"></span>
-                                </span>
-                            </label>
+
+                            <div class="card-controls">
+                                <button type="button" class="timer-trigger-btn" onclick="openAutomationModal(3, 'Smart Socket')" title="Set Timer / Schedule">
+                                    <i class="fa-regular fa-clock"></i>
+                                </button>
+                                <label class="toggle">
+                                    <input type="checkbox" onchange="updateSwitch(this)">
+                                    <span class="toggle-slider">
+                                        <span class="toggle-circle"></span>
+                                    </span>
+                                </label>
+                            </div>
                         </div>
                     </div>
 
@@ -249,7 +286,6 @@
                         <p class="section-subtitle">HARDWARE MANAGEMENT</p>
                         <h2>Device Inventory & Controls</h2>
                     </div>
-                    <!-- Filter buttons -->
                     <div class="filter-pills">
                         <button class="pill-btn active" data-filter="all">All (04)</button>
                         <button class="pill-btn" data-filter="living-room">Living Room</button>
@@ -260,7 +296,7 @@
 
                 <div class="device-list-grid">
 
-                    <!-- Detail Card 1 -->
+                    <!-- DETAIL ROW 1 -->
                     <div class="device-detail-card" data-room="living-room">
                         <div class="card-left">
                             <div class="device-icon light">
@@ -289,7 +325,7 @@
                         </div>
                     </div>
 
-                    <!-- Detail Card 2 -->
+                    <!-- DETAIL ROW 2 -->
                     <div class="device-detail-card" data-room="living-room">
                         <div class="card-left">
                             <div class="device-icon fan">
@@ -318,7 +354,7 @@
                         </div>
                     </div>
 
-                    <!-- Detail Card 3 -->
+                    <!-- DETAIL ROW 3 -->
                     <div class="device-detail-card" data-room="bedroom">
                         <div class="card-left">
                             <div class="device-icon bedroom">
@@ -347,7 +383,7 @@
                         </div>
                     </div>
 
-                    <!-- Detail Card 4 -->
+                    <!-- DETAIL ROW 4 -->
                     <div class="device-detail-card" data-room="kitchen">
                         <div class="card-left">
                             <div class="device-icon socket">
@@ -358,7 +394,7 @@
                                 <p>Channel 04 • GPIO 12 (Pin D6)</p>
                                 <div class="badge-row">
                                     <span class="badge room-badge">Kitchen</span>
-                                    <span class="badge load-badge">1200W Appliance</span>
+                                    <span class="badge load-badge">1200W Load</span>
                                 </div>
                             </div>
                         </div>
@@ -393,7 +429,7 @@
 
                 <div class="settings-grid">
 
-                    <!-- MQTT Settings Card -->
+                    <!-- MQTT BROKER SETTINGS -->
                     <div class="settings-card">
                         <div class="settings-card-header">
                             <i class="fa-solid fa-network-wired"></i>
@@ -404,8 +440,8 @@
                         </div>
                         <div class="settings-form">
                             <div class="form-group">
-                                <label>WebSocket Broker URL</label>
-                                <input type="text" id="cfg-broker-url" value="ws://broker.hivemq.com:8000/mqtt">
+                                <label>Secure WebSocket Broker URL</label>
+                                <input type="text" id="cfg-broker-url" value="wss://broker.hivemq.com:8884/mqtt">
                             </div>
                             <div class="form-row">
                                 <div class="form-group">
@@ -420,7 +456,7 @@
                         </div>
                     </div>
 
-                    <!-- Energy Tariff Card -->
+                    <!-- ENERGY TARIFF -->
                     <div class="settings-card">
                         <div class="settings-card-header">
                             <i class="fa-solid fa-bolt"></i>
@@ -444,7 +480,7 @@
                         </div>
                     </div>
 
-                    <!-- Hardware Spec Card -->
+                    <!-- HARDWARE SPECIFICATIONS -->
                     <div class="settings-card">
                         <div class="settings-card-header">
                             <i class="fa-solid fa-microchip"></i>
@@ -473,7 +509,7 @@
                         </div>
                     </div>
 
-                    <!-- Emergency Controls Card -->
+                    <!-- EMERGENCY CONTROLS -->
                     <div class="settings-card">
                         <div class="settings-card-header">
                             <i class="fa-solid fa-triangle-exclamation"></i>
@@ -503,22 +539,96 @@
                     <span class="footer-dot"></span>
                     <span>SmartHome Controller</span>
                 </div>
-                <span>ESP8266 • Wi-Fi</span>
+                <span>ESP8266 • Wi-Fi • MQTT</span>
             </footer>
 
         </main>
 
     </div>
 
-    <!-- ================= MQTT.JS OVER WEBSOCKETS ================= -->
+
+    <!-- ================= AUTOMATION & TIMER MODAL ================= -->
+    <div id="automation-modal" class="modal-overlay">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <div>
+                    <span class="modal-badge">AUTOMATION</span>
+                    <h3 id="modal-appliance-title">Living Room Light</h3>
+                </div>
+                <button type="button" class="modal-close-btn" onclick="closeAutomationModal()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Tab Switcher -->
+            <div class="modal-tabs">
+                <button type="button" class="modal-tab-btn active" data-tab="timer" onclick="switchModalTab('timer')">
+                    <i class="fa-solid fa-hourglass-half"></i> Countdown Timer
+                </button>
+                <button type="button" class="modal-tab-btn" data-tab="schedule" onclick="switchModalTab('schedule')">
+                    <i class="fa-regular fa-calendar-check"></i> Exact Schedule
+                </button>
+            </div>
+
+            <!-- TAB 1: COUNTDOWN TIMER -->
+            <div id="tab-timer" class="tab-pane active">
+                <p class="tab-description">Keep this appliance in a state for a set duration, then automatically flip it.</p>
+                <div class="form-group">
+                    <label>Action to execute right now:</label>
+                    <select id="timer-initial-action" class="modal-select">
+                        <option value="ON">Turn ON now &rarr; Turn OFF when time runs out</option>
+                        <option value="OFF">Turn OFF now &rarr; Turn ON when time runs out</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Hours</label>
+                        <input type="number" id="timer-hours" class="modal-input" min="0" max="24" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Minutes</label>
+                        <input type="number" id="timer-minutes" class="modal-input" min="1" max="59" value="15">
+                    </div>
+                </div>
+                <button type="button" class="modal-submit-btn" onclick="setCountdownTimer()">
+                    <i class="fa-solid fa-play"></i> Start Timer
+                </button>
+            </div>
+
+            <!-- TAB 2: EXACT TIME SCHEDULE -->
+            <div id="tab-schedule" class="tab-pane">
+                <p class="tab-description">Schedule this appliance to switch at a specific clock time.</p>
+                <div class="form-group">
+                    <label>Select Target Time:</label>
+                    <input type="time" id="schedule-time" class="modal-input" required>
+                </div>
+                <div class="form-group">
+                    <label>Target Action at that time:</label>
+                    <select id="schedule-target-action" class="modal-select">
+                        <option value="ON">Switch appliance ON</option>
+                        <option value="OFF">Switch appliance OFF</option>
+                    </select>
+                </div>
+                <button type="button" class="modal-submit-btn" onclick="setExactSchedule()">
+                    <i class="fa-solid fa-calendar-plus"></i> Set Schedule
+                </button>
+            </div>
+
+            <!-- Active Jobs Section -->
+            <div class="active-jobs-section">
+                <h4>Active Triggers for this Device</h4>
+                <div id="active-jobs-list" class="active-jobs-list">
+                    <p class="no-jobs-text">No active timers or schedules running.</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- ================= EXTERNAL SCRIPTS ================= -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-
-    <!-- App JavaScript -->
-    <script src="script.js"></script>
-</body>
-</html>
-
-    <!-- JavaScript Loaded At Bottom -->
     <script src="script.js"></script>
 
 </body>
